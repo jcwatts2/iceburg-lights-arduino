@@ -1,17 +1,12 @@
 #include <Adafruit_NeoPixel.h>
 #include <pt.h>
+#include "StateIndicator.h"
 
 #define NUM_OF_PIXELS 24
 #define PROXIMITY_FACET_NUMBER 6
 #define IDLE_DELAY 60
 #define NUM_OF_FACETS 6
 
-enum state {
-    idle,
-    proximity,
-    touched,
-    correspondingTouch
-};
 
 static struct pt idleDraw, proximityDraw, touchedDraw, correspondingDraw;
 
@@ -25,8 +20,10 @@ struct Color {
 
 class State {
   public: 
-    virtual void handleDraw(Adafruit_NeoPixel ring, Color color, int stateToDraw) {}
-    virtual State handleChange(Facet* facet, int changeIndicator) {}
+    virtual void handleDraw(Adafruit_NeoPixel* ring, Color* color, StateIndicator stateToDraw) {
+      Serial.print("State CLASS handle draw\n");
+    }
+    virtual State* handleChange(Facet* facet, int changeIndicator) {}
     virtual int getStateIndicator() {}
 };
 
@@ -43,22 +40,35 @@ class Proximity : public State {
           lead = -1;
       }
       
-      void handleDraw(Adafruit_NeoPixel ring, Color color, int stateToDraw) {
-
-          if (stateToDraw != proximity) {
-            return;
-          }
+      void handleDraw(Adafruit_NeoPixel* ring, Color* color, StateIndicator stateToDraw) {
         
+          for (int16_t i = 0; i < ring->numPixels(); i++) {
+            //ring->setPixelColor(i, 255, 0, 0);
+            ring->setPixelColor(i, color->red, color->green, color->blue);  
+          }
+          ring->show();
+          
+          /*
           if (lead == -1) {
-            //reset ring
+
+            //for (int16_t i = 0; i < ring.numPixels(); i++) {
+            //   ring.setPixelColor(i, 255, 255, 255); 
+            //}
+            //ring.show();
+            lead = swipeLength;
+            Serial.print("Initial lead: ");
+            Serial.println(lead);
           }
-        
+       
           for (int16_t i = 0; i < offset; i++) {
-              ring.setPixelColor(((lead + i) % ring.numPixels()), color.red, color.green, color.blue);
-              ring.setPixelColor(((lead - (swipeLength - i)) % ring.numPixels()), 255, 255, 255);
+              //ring.setPixelColor(((lead + i) % ring.numPixels()), color.red, color.green, color.blue);
+              //ring.setPixelColor(((lead - (swipeLength - i)) % ring.numPixels()), 255, 255, 255);
           } 
-          ring.show();
-          lead = ((lead + offset) % ring.numPixels());       
+          //ring.show();
+          lead = ((lead + offset) % ring.numPixels());
+          Serial.print("Next lead: ");
+          Serial.println(lead);
+          */
       }
 };
 
@@ -69,51 +79,48 @@ class CorrespondingTouch : public State {
 };
 
 class Facet {
-  Color color;
-  Adafruit_NeoPixel ring;
-  State state;
-  int pin;
+  Color facetColor;
+  Adafruit_NeoPixel* ring;
+  State* state;
+  int pinNumber;
 
   public:
-    Facet(int pin, Color color) {
-      ring = Adafruit_NeoPixel(NUM_OF_PIXELS, pin, NEO_GRB + NEO_KHZ800);
-      pin = pin;
-      color = color;
-      state = Idle();
-    }
-   
-    int getPin() {
-      return pin;  
+    Facet(int pin, int red, int green, int blue) {
+      ring = new Adafruit_NeoPixel(NUM_OF_PIXELS, pin, NEO_GRB + NEO_KHZ800);
+      pinNumber = pin;
+      facetColor = {red, green, blue};
+      state = new Proximity();
     }
     
-    Adafruit_NeoPixel getRing() {
-      return ring;
-    }
-
-    Color getColor() {
-      return color;  
-    }
-    
-    void handleDraw(int stateToDraw) {
-        state.handleDraw(ring, color, stateToDraw);
+    void handleDraw(StateIndicator stateToDraw) {
+        state->handleDraw(ring, &facetColor, stateToDraw);
     }
 
     void handleChanged(int changeIndicator) {
-        state = state.handleChange(this, changeIndicator);
+        state = state->handleChange(this, changeIndicator);
+    }
+    
+    void init() {
+      pinMode(pinNumber, OUTPUT);
+      ring->begin();
+      ring->clear();
+      ring->show();
     }
 };
 
-Facet facets[NUM_OF_FACETS] = {
-  Facet(7,  {0, 255, 255}),//blue 0,0,255: KEEP
-  Facet(6, {0, 255, 255}),//made up color 0,60,255
-  Facet(5, {0, 255, 255}),//made up: 0,97,255: KEEP
-  Facet(4, {0, 255, 255}),//don't know name-bluish aqua 0,127,255: KEEP
-  Facet(3, {0, 255, 255}),//made up 40,191,255
-  Facet(2, {0, 255, 255})//dodger blue 30,144,255: KEEP
+
+Facet facets[6] = {
+  Facet(7, 0, 0, 255),//blue 0,0,255: KEEP
+  Facet(6, 255, 0, 0),//made up color 0,60,255
+  Facet(5, 0, 97, 255),//made up: 0,97,255: KEEP
+  Facet(4, 0, 127, 255),//don't know name-bluish aqua 0,127,255: KEEP
+  Facet(3, 40, 191, 255),//made up 40,191,255
+  Facet(2, 30, 144, 255)//dodger blue 30,144,255: KEEP
 };
 
-void handleDraw(state stateToDraw) {
-    for (int i = 0; i < NUM_OF_FACETS; i++) {
+void handleDraw(StateIndicator stateToDraw) {
+  
+    for (int i = 0; i < 6; i++) {
         facets[i].handleDraw(stateToDraw);
     }
 }
@@ -124,18 +131,21 @@ static int drawIdle(struct pt *pt, int interval) {
     while(1) {
         PT_WAIT_UNTIL(pt, millis() - timestamp > interval );
         timestamp = millis(); // take a new timestamp
-        handleDraw(idle);
+        handleDraw(IDLE);
     }
     PT_END(pt);
 }
 
 static int drawProximity(struct pt *pt, int interval) {
+  
     static unsigned long timestamp = 0;
+ 
     PT_BEGIN(pt);
+ 
     while(1) {
-        PT_WAIT_UNTIL(pt, millis() - timestamp > interval );
+        PT_WAIT_UNTIL(pt, millis() - timestamp > interval);
         timestamp = millis(); // take a new timestamp
-        handleDraw(proximity);
+        handleDraw(PROXIMITY);
     }
     PT_END(pt);
 }
@@ -146,7 +156,7 @@ static int drawTouch(struct pt *pt, int interval) {
     while(1) {
         PT_WAIT_UNTIL(pt, millis() - timestamp > interval );
         timestamp = millis(); // take a new timestamp
-        handleDraw(touched);
+        handleDraw(TOUCHED);
     }
     PT_END(pt);
 }
@@ -157,7 +167,7 @@ static int drawCorresponding(struct pt *pt, int interval) {
     while(1) {
         PT_WAIT_UNTIL(pt, millis() - timestamp > interval );
         timestamp = millis(); // take a new timestamp
-        handleDraw(correspondingTouch);
+        handleDraw(CORRESPONDING_TOUCH);
     }
     PT_END(pt);
 }
@@ -174,17 +184,34 @@ void setup() {
 
   Serial.begin(9600); //open serial port for incoming commands
   
+  Serial.println("SETUP");
+  
+  for (int i = 0; i < 6; i++) {
+      facets[i].init();
+  }
+  
+  Serial.setTimeout(50);
 }
 
+int once = 0;
+
 void loop() {
-    while (Serial.available() > 0) {
-        static int number = Serial.parseInt();
-        static int state = Serial.parseInt();
-        handleChange(number, state);
+
+    if (once == 0) {  
+       //handleDraw(PROXIMITY);
+         facets[0].handleDraw(PROXIMITY);
+         facets[1].handleDraw(PROXIMITY);
     }
+    once++;
+    //while (Serial.available() > 0) {
+    //    static int number = Serial.parseInt();
+    //    static int state = Serial.parseInt();
+    //    handleChange(number, state);
+    //}
 
     //drawIdle(&idleDraw, 900);
-    drawProximity(&proximityDraw, 60);
+    //drawProximity(&proximityDraw, 7000);
+
     //drawTouch(&touchedDraw, 900);
     //drawCorresponding(&correspondingDraw, 900);
 }
