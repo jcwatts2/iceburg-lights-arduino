@@ -53,7 +53,7 @@ class Idle : public State {
 class Proximity : public State {
   
     int offset = 1;
-    int swipeLength = 8;
+    int swipeLength = 12;
    
     public:
       Proximity() {
