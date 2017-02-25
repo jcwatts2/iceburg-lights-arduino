@@ -33,7 +33,7 @@ class Idle : public State {
 class Proximity : public State {
     int lead;
     int offset = 1;
-    int swipeLength = 6;
+    int swipeLength = 8;
    
     public:
       Proximity() {
@@ -41,34 +41,25 @@ class Proximity : public State {
       }
       
       void handleDraw(Adafruit_NeoPixel* ring, Color* color, StateIndicator stateToDraw) {
-        
-          for (int16_t i = 0; i < ring->numPixels(); i++) {
-            //ring->setPixelColor(i, 255, 0, 0);
-            ring->setPixelColor(i, color->red, color->green, color->blue);  
+          
+          if (lead == -1) {
+              ring->clear();
+   
+              for (uint16_t i = 0; i < swipeLength; i++) {
+                 ring->setPixelColor(i, color->red, color->green, color->blue); 
+              }
+              lead = swipeLength;
+              
+          } else {
+          
+              for (int16_t i = 0; i < offset; i++) {
+                  ring->setPixelColor(((lead + i) % ring->numPixels()), color->red, color->green, color->blue);
+                  ring->setPixelColor(((ring->numPixels() + (lead - (swipeLength - i))) % ring->numPixels()), 0, 0, 0);
+              } 
+          
+              lead = ((lead + offset) % ring->numPixels());
           }
           ring->show();
-          
-          /*
-          if (lead == -1) {
-
-            //for (int16_t i = 0; i < ring.numPixels(); i++) {
-            //   ring.setPixelColor(i, 255, 255, 255); 
-            //}
-            //ring.show();
-            lead = swipeLength;
-            Serial.print("Initial lead: ");
-            Serial.println(lead);
-          }
-       
-          for (int16_t i = 0; i < offset; i++) {
-              //ring.setPixelColor(((lead + i) % ring.numPixels()), color.red, color.green, color.blue);
-              //ring.setPixelColor(((lead - (swipeLength - i)) % ring.numPixels()), 255, 255, 255);
-          } 
-          //ring.show();
-          lead = ((lead + offset) % ring.numPixels());
-          Serial.print("Next lead: ");
-          Serial.println(lead);
-          */
       }
 };
 
@@ -111,7 +102,7 @@ class Facet {
 
 Facet facets[6] = {
   Facet(7, 0, 0, 255),//blue 0,0,255: KEEP
-  Facet(6, 255, 0, 0),//made up color 0,60,255
+  Facet(6, 0, 60, 255),//made up color 0,60,255
   Facet(5, 0, 97, 255),//made up: 0,97,255: KEEP
   Facet(4, 0, 127, 255),//don't know name-bluish aqua 0,127,255: KEEP
   Facet(3, 40, 191, 255),//made up 40,191,255
@@ -197,12 +188,12 @@ int once = 0;
 
 void loop() {
 
-    if (once == 0) {  
+    //if (once == 0) {  
        //handleDraw(PROXIMITY);
-         facets[0].handleDraw(PROXIMITY);
-         facets[1].handleDraw(PROXIMITY);
-    }
-    once++;
+       //  facets[0].handleDraw(PROXIMITY);
+      //   facets[1].handleDraw(PROXIMITY);
+    //}
+    //once++;
     //while (Serial.available() > 0) {
     //    static int number = Serial.parseInt();
     //    static int state = Serial.parseInt();
@@ -210,7 +201,7 @@ void loop() {
     //}
 
     //drawIdle(&idleDraw, 900);
-    //drawProximity(&proximityDraw, 7000);
+    drawProximity(&proximityDraw, 60);
 
     //drawTouch(&touchedDraw, 900);
     //drawCorresponding(&correspondingDraw, 900);
