@@ -10,41 +10,64 @@
 
 static struct pt idleDraw, proximityDraw, touchedDraw, correspondingDraw;
 
-class Facet;
-
 struct Color {
   int red;
   int green;
   int blue;
 };
 
+class Facet;
+
 class State {
   public: 
-    virtual void handleDraw(Adafruit_NeoPixel* ring, Color* color, StateIndicator stateToDraw) {
+    virtual void handleDraw(Facet* facet, StateIndicator stateToDraw) {
       Serial.print("State CLASS handle draw\n");
     }
     virtual State* handleChange(Facet* facet, int changeIndicator) {}
     virtual int getStateIndicator() {}
 };
 
+class Facet {
+  Color facetColor;
+  Adafruit_NeoPixel* ring;
+  State* state;
+  int pinNumber;
+  int idleLead;
+
+  public:
+    Facet(int pin, int red, int green, int blue);
+    void handleDraw(StateIndicator stateToDraw);
+    void handleChanged(int changeIndicator);
+    void init();
+    void resetLead();
+    int getLead();
+    void setLead(int lead);
+    Color* getColor();
+    Adafruit_NeoPixel* getRing();
+};
+
+
 class Idle : public State {
 };
 
 class Proximity : public State {
-    int lead;
+  
     int offset = 1;
     int swipeLength = 8;
    
     public:
       Proximity() {
-          lead = -1;
       }
       
-      void handleDraw(Adafruit_NeoPixel* ring, Color* color, StateIndicator stateToDraw) {
+      void handleDraw(Facet* facet, StateIndicator stateToDraw) {
           
           if (PROXIMITY != stateToDraw) {
             return;
           }
+          
+          Adafruit_NeoPixel* ring = facet->getRing();
+          Color* color = facet->getColor(); 
+          int lead = facet->getLead();
         
           if (lead == -1) {
               ring->clear();
@@ -63,6 +86,7 @@ class Proximity : public State {
           
               lead = ((lead + offset) % ring->numPixels());
           }
+          facet->setLead(lead);
           ring->show();
       }
 };
@@ -73,35 +97,48 @@ class Touched : public State {
 class CorrespondingTouch : public State {
 };
 
-class Facet {
-  Color facetColor;
-  Adafruit_NeoPixel* ring;
-  State* state;
-  int pinNumber;
-
-  public:
-    Facet(int pin, int red, int green, int blue) {
+Facet::Facet(int pin, int red, int green, int blue) {
       ring = new Adafruit_NeoPixel(NUM_OF_PIXELS, pin, NEO_GRB + NEO_KHZ800);
       pinNumber = pin;
       facetColor = {red, green, blue};
       state = new Proximity();
-    }
+      idleLead = -1;
+}
     
-    void handleDraw(StateIndicator stateToDraw) {
-        state->handleDraw(ring, &facetColor, stateToDraw);
-    }
+void Facet::handleDraw(StateIndicator stateToDraw) {
+        state->handleDraw(this, stateToDraw);
+}
 
-    void handleChanged(int changeIndicator) {
+void Facet::handleChanged(int changeIndicator) {
         state = state->handleChange(this, changeIndicator);
-    }
+}
     
-    void init() {
+void Facet::init() {
       pinMode(pinNumber, OUTPUT);
       ring->begin();
       ring->clear();
       ring->show();
-    }
-};
+}
+    
+void Facet::resetLead() {
+        idleLead = -1;
+}
+    
+int Facet::getLead() {
+        return idleLead;
+}
+    
+void Facet::setLead(int lead) {
+        idleLead = lead;
+}
+    
+Color* Facet::getColor() {
+        return &facetColor;
+}
+    
+Adafruit_NeoPixel* Facet::getRing() {
+        return ring;
+}
 
 
 Facet facets[6] = {
