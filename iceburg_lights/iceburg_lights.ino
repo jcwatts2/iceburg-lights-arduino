@@ -42,6 +42,10 @@ class Proximity : public State {
       
       void handleDraw(Adafruit_NeoPixel* ring, Color* color, StateIndicator stateToDraw) {
           
+          if (PROXIMITY != stateToDraw) {
+            return;
+          }
+        
           if (lead == -1) {
               ring->clear();
    
