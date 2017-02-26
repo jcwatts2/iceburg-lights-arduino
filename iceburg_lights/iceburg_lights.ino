@@ -191,6 +191,27 @@ class Touched : public State {
 };
 
 class CorrespondingTouch : public State {
+  
+   private:
+      Color touchedColor = {250, 215, 0}; 
+  
+   public:
+         void handleChangeTo(Facet* facet) {
+             for (uint16_t i = 0; i < 5; i++) {
+                 facet->showAll(&touchedColor);
+                 delay(100);
+                 facet->showAll(0, 0, 0);
+                 delay(100);
+             }
+             facet->showAll(&touchedColor);
+         }
+    
+         void handleDraw(Facet* facet, StateIndicator stateToDraw) {
+                      
+             if (CORRESPONDING_TOUCH == stateToDraw) {
+                 facet->showAll(&touchedColor);
+             }
+         }
 };
 
 Facet::Facet(State* initState, int pin, int red, int green, int blue) {
@@ -314,6 +335,9 @@ static int changeState(struct pt *pt, int interval) {
             to = 1;
         } else if (to == 1) {
            facets[4]->handleChanged(TOUCHED);
+           to = 2;
+        } else if (to == 2) {
+           facets[4]->handleChanged(CORRESPONDING_TOUCH);
            to = 0;
         }
     }
