@@ -77,20 +77,34 @@ class Facet {
   Adafruit_NeoPixel* ring;
   State* state;
   int pinNumber;
-  int idleLead;
+  int fade;
+  int fadeCount;
 
   public:
       Facet(State* initState, int pin, int red, int green, int blue);
       void handleDraw(StateIndicator stateToDraw);
       void handleChanged(int changeIndicator);
       void init();
-      void resetLead();
-      int getLead();
-      void setLead(int lead);
       Color* getColor();
       Adafruit_NeoPixel* getRing();
-      void showAll(int red, int green, int blue);
+      void showAll(float red, float green, float blue);
       void showAll(Color* color);
+      
+      void setFadeIn() {
+        fade = 1;
+      }
+      void setFadeOut() {
+        fade = 0;
+      }
+      int getFadeIn() {
+        return fade;
+      }
+      int getFadeCount() {
+        return fadeCount;
+      }
+      void setFadeCount(int f) {
+         fadeCount = f;
+      }
 };
 
 class Idle : public State {
@@ -120,7 +134,8 @@ class Proximity : public State {
       }
       
       void handleChangeTo(Facet* facet) {
-          facet->setLead(-1);
+          facet->setFadeCount(0);
+          facet->setFadeOut();
       }
       
       void handleDraw(Facet* facet, StateIndicator stateToDraw) {
@@ -131,27 +146,25 @@ class Proximity : public State {
           
           Adafruit_NeoPixel* ring = facet->getRing();
           Color* color = facet->getColor(); 
-          int lead = facet->getLead();
-        
-          if (lead == -1) {
-              ring->clear();
-   
-              for (uint16_t i = 0; i < swipeLength; i++) {
-                 ring->setPixelColor(i, color->red, color->green, color->blue); 
-              }
-              lead = swipeLength;
-              
+         
+          if (facet->getFadeCount() >= 256) {
+            facet->setFadeOut();
+            facet->setFadeCount(255);
+            
+          } else if (facet->getFadeCount() <= 0) {
+            facet->setFadeIn();
+            facet->setFadeCount(2);
+          
+          } else if (facet->getFadeIn()) {
+             facet->setFadeCount(facet->getFadeCount() + 1);
+             
           } else {
-          
-              for (int16_t i = 0; i < offset; i++) {
-                  ring->setPixelColor(((lead + i) % ring->numPixels()), color->red, color->green, color->blue);
-                  ring->setPixelColor(((ring->numPixels() + (lead - (swipeLength - i))) % ring->numPixels()), 0, 0, 0);
-              } 
-          
-              lead = ((lead + offset) % ring->numPixels());
+             facet->setFadeCount(facet->getFadeCount() - 2);
           }
-          facet->setLead(lead);
-          ring->show();
+          
+          float k = facet->getFadeCount() / 256.0;
+          
+          facet->showAll((k * color->red), (k * color->green), (k * color->blue));
       }
 };
 
@@ -185,7 +198,6 @@ Facet::Facet(State* initState, int pin, int red, int green, int blue) {
       pinNumber = pin;
       facetColor = {red, green, blue};
       state = initState;
-      idleLead = -1;
 }
     
 void Facet::handleDraw(StateIndicator stateToDraw) {
@@ -204,18 +216,6 @@ void Facet::init() {
     ring->show();
 }
     
-void Facet::resetLead() {
-    idleLead = -1;
-}
-    
-int Facet::getLead() {
-    return idleLead;
-}
-    
-void Facet::setLead(int lead) {
-    idleLead = lead;
-}
-    
 Color* Facet::getColor() {
     return &facetColor;
 }
@@ -224,7 +224,7 @@ Adafruit_NeoPixel* Facet::getRing() {
     return ring;
 }
 
-void Facet::showAll(int red, int green, int blue) {
+void Facet::showAll(float red, float green, float blue) {
   
     for (uint16_t i = 0; i < ring->numPixels(); i++) {
         ring->setPixelColor(i, red, green, blue); 
@@ -308,7 +308,6 @@ static int changeState(struct pt *pt, int interval) {
         timestamp = millis(); // take a new timestamp
         
         if (to == 0) {
- Serial.println("To proximity");
             for (int i = 0; i < 6; i++) {
                 facets[i]->handleChanged(PROXIMITY);
             }
@@ -368,7 +367,7 @@ void loop() {
     //}
 
     drawIdle(&idleDraw, 200);
-    drawProximity(&proximityDraw, 60);
+    drawProximity(&proximityDraw, 10);
     drawTouch(&touchedDraw, 900);
     drawCorresponding(&correspondingDraw, 900);
     
