@@ -8,14 +8,13 @@
 #define NUM_OF_FACETS 6
 
 
-static struct pt idleDraw, proximityDraw, touchedDraw, correspondingDraw, stateChanged;
+static struct pt idleDraw, proximityDraw, touchedDraw, correspondingDraw;//, stateChanged;
 
 struct Color {
   int red;
   int green;
   int blue;
 };
-
 
 class Facet;
 
@@ -48,22 +47,18 @@ class State {
        switch(toState) {
                     
              case PROXIMITY:
- Serial.println("Moving to proximity");
                 finalState = proximityState;
                 break;
                  
              case CORRESPONDING_TOUCH:
- Serial.println("Moving to corresponding");
                 finalState = correspondingTouchState;
                 break;
                 
              case IDLE:
- Serial.println("Moving to idle");
                 finalState = idleState;  
                 break;
                 
              case TOUCHED:
- Serial.println("Moving to touch");
                 finalState = touchedState;
                 break;                
        }
@@ -226,7 +221,9 @@ void Facet::handleDraw(StateIndicator stateToDraw) {
 }
 
 void Facet::handleChanged(int changeIndicator) {
-Serial.println("Handle Changed");
+  
+Serial.print("change indicator ");
+Serial.println(changeIndicator);
     state = state->handleChange(this, (StateIndicator)changeIndicator);
 }
     
@@ -314,9 +311,31 @@ static int drawCorresponding(struct pt *pt, int interval) {
 }
 
 void handleChange(int number, int state) {
+    if (number > NUM_OF_FACETS) {
+      return;
+    }
+    
+    if (state < 0 || state > 3) {
+       return;
+    }
+    
+    if (number == NUM_OF_FACETS) { //proximity facet indicator
+       
+       for (int i = 0; i < NUM_OF_FACETS; i++) {
+          
+         facets[i]->handleChanged(PROXIMITY);
+          
+       }       
+    } else {
+       facets[number]->handleChanged(state); 
+    }
+}
+
+void fireworks() {
   
 }
 
+/*
 static int changeState(struct pt *pt, int interval) {
      
     static int to = 0;
@@ -343,6 +362,7 @@ static int changeState(struct pt *pt, int interval) {
     }
     PT_END(pt);
 }
+*/
 
 void setup() {
   PT_INIT(&idleDraw);
@@ -378,23 +398,27 @@ void setup() {
 
 void loop() {
 
-    //if (once == 0) {  
-       //handleDraw(PROXIMITY);
-       //  facets[0].handleDraw(PROXIMITY);
-      //   facets[1].handleDraw(PROXIMITY);
-    //}
-    //once++;
-    //while (Serial.available() > 0) {
-    //    static int number = Serial.parseInt();
-    //    static int state = Serial.parseInt();
-    //    handleChange(number, state);
-    //}
+    while (Serial.available() > 0) {
+        int number = Serial.parseInt();
+        int state = Serial.parseInt();
+        
+        Serial.print(number);
+        Serial.print(":");
+        Serial.println(state);
+        
+        if (state == THE_MAIN_EVENT) {
+            
+            fireworks();
+            
+        } else {
+            handleChange(number, state);
+        }
+    }
 
     drawIdle(&idleDraw, 200);
     drawProximity(&proximityDraw, 10);
     drawTouch(&touchedDraw, 900);
     drawCorresponding(&correspondingDraw, 900);
     
-    changeState(&stateChanged, 12000);
-    
+    //changeState(&stateChanged, 12000);
 }
