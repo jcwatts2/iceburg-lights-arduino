@@ -320,11 +320,8 @@ void handleChange(int number, int state) {
     }
     
     if (number == NUM_OF_FACETS) { //proximity facet indicator
-       
        for (int i = 0; i < NUM_OF_FACETS; i++) {
-          
-         facets[i]->handleChanged(PROXIMITY);
-          
+         facets[i]->handleChanged(state);
        }       
     } else {
        facets[number]->handleChanged(state); 
@@ -334,35 +331,6 @@ void handleChange(int number, int state) {
 void fireworks() {
   
 }
-
-/*
-static int changeState(struct pt *pt, int interval) {
-     
-    static int to = 0;
-  
-    static unsigned long timestamp = 0;
-  
-    PT_BEGIN(pt);
-    while(1) {
-        PT_WAIT_UNTIL(pt, millis() - timestamp > interval );
-        timestamp = millis(); // take a new timestamp
-        
-        if (to == 0) {
-            for (int i = 0; i < 6; i++) {
-                facets[i]->handleChanged(PROXIMITY);
-            }
-            to = 1;
-        } else if (to == 1) {
-           facets[4]->handleChanged(TOUCHED);
-           to = 2;
-        } else if (to == 2) {
-           facets[4]->handleChanged(CORRESPONDING_TOUCH);
-           to = 0;
-        }
-    }
-    PT_END(pt);
-}
-*/
 
 void setup() {
   PT_INIT(&idleDraw);
@@ -419,6 +387,5 @@ void loop() {
     drawProximity(&proximityDraw, 10);
     drawTouch(&touchedDraw, 900);
     drawCorresponding(&correspondingDraw, 900);
-    
-    //changeState(&stateChanged, 12000);
+
 }
