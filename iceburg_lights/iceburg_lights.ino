@@ -370,10 +370,6 @@ void loop() {
         int number = Serial.parseInt();
         int state = Serial.parseInt();
         
-        Serial.print(number);
-        Serial.print(":");
-        Serial.println(state);
-        
         if (state == THE_MAIN_EVENT) {
             
             fireworks();
