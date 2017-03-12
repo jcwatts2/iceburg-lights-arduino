@@ -10,6 +10,11 @@
 
 static struct pt idleDraw, proximityDraw, touchedDraw, correspondingDraw;//, stateChanged;
 
+int idleFadeOut = 0;
+int idleFadeCount = 1;
+int proximityFadeOut = 0;
+int proximityFadeCount = 1; 
+
 struct Color {
   int red;
   int green;
@@ -72,8 +77,6 @@ class Facet {
   Adafruit_NeoPixel* ring;
   State* state;
   int pinNumber;
-  int fade;
-  int fadeCount;
 
   public:
       Facet(State* initState, int pin, int red, int green, int blue);
@@ -84,22 +87,6 @@ class Facet {
       Adafruit_NeoPixel* getRing();
       void showAll(float red, float green, float blue);
       void showAll(Color* color);
-      
-      void setFadeIn() {
-        fade = 1;
-      }
-      void setFadeOut() {
-        fade = 0;
-      }
-      int getFadeIn() {
-        return fade;
-      }
-      int getFadeCount() {
-        return fadeCount;
-      }
-      void setFadeCount(int f) {
-         fadeCount = f;
-      }
 };
 
 class Idle : public State {
@@ -107,33 +94,16 @@ class Idle : public State {
     public:
         
         void handleChangeTo(Facet* facet) {
-            facet->setFadeCount(0);
-            facet->setFadeOut();
         }
         
         void handleDraw(Facet* facet, StateIndicator stateToDraw) {
              
-             if (IDLE != stateToDraw) { return; }
+            if (IDLE != stateToDraw) { return; }
           
             Adafruit_NeoPixel* ring = facet->getRing();
             Color* color = facet->getColor(); 
-         
-            if (facet->getFadeCount() >= 256) {
-              facet->setFadeOut();
-              facet->setFadeCount(255);
-            
-            } else if (facet->getFadeCount() <= 0) {
-               facet->setFadeIn();
-               facet->setFadeCount(2);
           
-            } else if (facet->getFadeIn()) {
-               facet->setFadeCount(facet->getFadeCount() + 1);
-             
-            } else {
-               facet->setFadeCount(facet->getFadeCount() - 2);
-            }
-          
-            float k = facet->getFadeCount() / 256.0;
+            float k = idleFadeCount / 256.0;
           
             facet->showAll((k * color->red), (k * color->green), (k * color->blue));
         }
@@ -146,8 +116,6 @@ class Proximity : public State {
       }
       
       void handleChangeTo(Facet* facet) {
-          facet->setFadeCount(0);
-          facet->setFadeOut();
       }
       
       void handleDraw(Facet* facet, StateIndicator stateToDraw) {
@@ -159,22 +127,8 @@ class Proximity : public State {
           Adafruit_NeoPixel* ring = facet->getRing();
           Color* color = facet->getColor(); 
          
-          if (facet->getFadeCount() >= 256) {
-            facet->setFadeOut();
-            facet->setFadeCount(255);
-            
-          } else if (facet->getFadeCount() <= 0) {
-            facet->setFadeIn();
-            facet->setFadeCount(2);
-          
-          } else if (facet->getFadeIn()) {
-             facet->setFadeCount(facet->getFadeCount() + 1);
-             
-          } else {
-             facet->setFadeCount(facet->getFadeCount() - 2);
-          }
-          
-          float k = facet->getFadeCount() / 256.0;
+
+          float k = proximityFadeCount / 256.0;
           
           facet->showAll((k * color->red), (k * color->green), (k * color->blue));
       }
@@ -187,9 +141,9 @@ class Touched : public State {
          void handleChangeTo(Facet* facet) {
              for (uint16_t i = 0; i < 5; i++) {
                  facet->showAll(facet->getColor());
-                 delay(100);
+                 delay(90);
                  facet->showAll(0, 0, 0);
-                 delay(100);
+                 delay(90);
              }
              facet->showAll(facet->getColor());
          }
@@ -238,9 +192,6 @@ void Facet::handleDraw(StateIndicator stateToDraw) {
 }
 
 void Facet::handleChanged(int changeIndicator) {
-  
-Serial.print("change indicator ");
-Serial.println(changeIndicator);
     state = state->handleChange(this, (StateIndicator)changeIndicator);
 }
     
@@ -288,6 +239,20 @@ static int drawIdle(struct pt *pt, int interval) {
     while(1) {
         PT_WAIT_UNTIL(pt, millis() - timestamp > interval );
         timestamp = millis(); // take a new timestamp
+        
+        if (idleFadeCount >= 256) {
+            idleFadeOut = 1;
+            idleFadeCount = 255;
+            
+        } else if (idleFadeCount <= 0) {
+            idleFadeOut = 0;
+            idleFadeCount = 2;
+            
+        } else if (idleFadeOut == 1) {
+            idleFadeCount -= 2;
+        } else {
+            idleFadeCount += 1;
+        }     
         handleDraw(IDLE);
     }
     PT_END(pt);
@@ -302,6 +267,23 @@ static int drawProximity(struct pt *pt, int interval) {
     while(1) {
         PT_WAIT_UNTIL(pt, millis() - timestamp > interval);
         timestamp = millis(); // take a new timestamp
+        
+        if (proximityFadeCount >= 256) {
+          proximityFadeOut = 1;
+          proximityFadeCount = 255;
+            
+        } else if (proximityFadeCount <= 0) {
+          
+          proximityFadeOut = 0;
+          proximityFadeCount = 2;     
+          
+        } else if (proximityFadeOut == 1) {
+          
+          proximityFadeCount -= 2;  
+        
+        } else {
+          proximityFadeCount += 1;
+        }
         handleDraw(PROXIMITY);
     }
     PT_END(pt);
@@ -375,13 +357,14 @@ void setup() {
   for (int i = 0; i < 6; i++) {
       facets[i]->init();
   }
- 
+  /*
   upperFacets[0] = facets[2];
   upperFacets[1] = facets[3];
   upperFacets[2] = facets[4];
   lowerFacets[0] = facets[5];
   lowerFacets[1] = facets[0];
   lowerFacets[2] = facets[1];
+  */
   
   Serial.setTimeout(50);
 }
@@ -406,8 +389,8 @@ void loop() {
         }
     }
 
-    drawIdle(&idleDraw, 15);
-    drawProximity(&proximityDraw, 5);
+    drawIdle(&idleDraw, 20);
+    drawProximity(&proximityDraw, 10);
     drawTouch(&touchedDraw, 900);
     drawCorresponding(&correspondingDraw, 900);
 
