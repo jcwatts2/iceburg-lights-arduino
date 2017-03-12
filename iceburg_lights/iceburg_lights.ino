@@ -106,23 +106,40 @@ class Idle : public State {
   
     public:
         
+        void handleChangeTo(Facet* facet) {
+            facet->setFadeCount(0);
+            facet->setFadeOut();
+        }
+        
         void handleDraw(Facet* facet, StateIndicator stateToDraw) {
              
-             if (IDLE == stateToDraw) {
-                 Color* color = facet->getColor();
+             if (IDLE != stateToDraw) { return; }
+          
+            Adafruit_NeoPixel* ring = facet->getRing();
+            Color* color = facet->getColor(); 
+         
+            if (facet->getFadeCount() >= 256) {
+              facet->setFadeOut();
+              facet->setFadeCount(255);
+            
+            } else if (facet->getFadeCount() <= 0) {
+               facet->setFadeIn();
+               facet->setFadeCount(2);
+          
+            } else if (facet->getFadeIn()) {
+               facet->setFadeCount(facet->getFadeCount() + 1);
              
-                 for (uint16_t i = 0; i < facet->getRing()->numPixels(); i++) {
-                    facet->getRing()->setPixelColor(i, color->red, color->green, color->blue); 
-                 }
-                 facet->getRing()->show();
-             }
+            } else {
+               facet->setFadeCount(facet->getFadeCount() - 2);
+            }
+          
+            float k = facet->getFadeCount() / 256.0;
+          
+            facet->showAll((k * color->red), (k * color->green), (k * color->blue));
         }
 };
 
 class Proximity : public State {
-  
-    int offset = 1;
-    int swipeLength = 12;
    
     public:
       Proximity() {
@@ -255,6 +272,8 @@ void Facet::showAll(Color* color) {
 }
 
 Facet* facets[6];
+Facet* upperFacets[3];
+Facet* lowerFacets[3];
 
 void handleDraw(StateIndicator stateToDraw) {
   
@@ -328,10 +347,6 @@ void handleChange(int number, int state) {
     }
 }
 
-void fireworks() {
-  
-}
-
 void setup() {
   PT_INIT(&idleDraw);
   PT_INIT(&proximityDraw);
@@ -360,8 +375,22 @@ void setup() {
   for (int i = 0; i < 6; i++) {
       facets[i]->init();
   }
+ 
+  upperFacets[0] = facets[2];
+  upperFacets[1] = facets[3];
+  upperFacets[2] = facets[4];
+  lowerFacets[0] = facets[5];
+  lowerFacets[1] = facets[0];
+  lowerFacets[2] = facets[1];
   
   Serial.setTimeout(50);
+}
+
+void finale() {
+   
+  
+    
+  
 }
 
 void loop() {
@@ -372,15 +401,13 @@ void loop() {
         
         if (state == THE_MAIN_EVENT) {
             
-            fireworks();
-            
         } else {
             handleChange(number, state);
         }
     }
 
-    drawIdle(&idleDraw, 200);
-    drawProximity(&proximityDraw, 10);
+    drawIdle(&idleDraw, 15);
+    drawProximity(&proximityDraw, 5);
     drawTouch(&touchedDraw, 900);
     drawCorresponding(&correspondingDraw, 900);
 
