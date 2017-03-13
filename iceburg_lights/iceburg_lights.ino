@@ -87,6 +87,7 @@ class Facet {
       Adafruit_NeoPixel* getRing();
       void showAll(float red, float green, float blue);
       void showAll(Color* color);
+      void setAll(float red, float green, float blue);
 };
 
 class Idle : public State {
@@ -212,10 +213,14 @@ Adafruit_NeoPixel* Facet::getRing() {
 
 void Facet::showAll(float red, float green, float blue) {
   
-    for (uint16_t i = 0; i < ring->numPixels(); i++) {
+    setAll(red, green, blue);
+    ring->show();
+}
+
+void Facet::setAll(float red, float green, float blue) {
+      for (uint16_t i = 0; i < ring->numPixels(); i++) {
         ring->setPixelColor(i, red, green, blue); 
     }
-    ring->show();
 }
 
 void Facet::showAll(Color* color) {
@@ -223,8 +228,6 @@ void Facet::showAll(Color* color) {
 }
 
 Facet* facets[6];
-Facet* upperFacets[3];
-Facet* lowerFacets[3];
 
 void handleDraw(StateIndicator stateToDraw) {
   
@@ -357,33 +360,82 @@ void setup() {
   for (int i = 0; i < 6; i++) {
       facets[i]->init();
   }
-  /*
-  upperFacets[0] = facets[2];
-  upperFacets[1] = facets[3];
-  upperFacets[2] = facets[4];
-  lowerFacets[0] = facets[5];
-  lowerFacets[1] = facets[0];
-  lowerFacets[2] = facets[1];
-  */
   
   Serial.setTimeout(50);
 }
 
 void finale() {
-   
+
+  for (int i = 255; i > -1; i=i-5) {
+    float v = i / 256.0;
+    for (int j = 0; j < NUM_OF_FACETS; j++) {
+       Color* color = facets[j]->getColor();
+       facets[j]->showAll((v * 250), (v * 215), (v * 0)); 
+    }
+    delay(15);
+  }
+  delay(100);
+  for (int i = 0; i < 255; i=i+5) {
+    float v = i / 256.0;
+    for (int j = 0; j < NUM_OF_FACETS; j++) {
+       Color* color = facets[j]->getColor();
+       facets[j]->showAll((v * 30), (v * 144), (v * 255)); 
+    }
+    delay(15);
+  }
+  delay(500);
   
+  for (int i = 0; i < NUM_OF_PIXELS / 2; i+=1) {
+    for (int j = 0; j < NUM_OF_FACETS; j++) {
+        facets[j]->getRing()->setPixelColor(random(NUM_OF_PIXELS), 0, 0, 0);
+        facets[j]->getRing()->show();
+    }
+    delay(10);
+  }
+  
+  int pix[20];
+  
+  for (int i = 20; i > 0; i-=1) {
     
+          if (i == 20) {
+            for (int k = 0; k < NUM_OF_FACETS; k+=1) {
+              facets[k]->setAll(0, 0, 0);
+            }
+          }
+    
+            for (int l = i-1; l > -1; l -= 1) {
+               pix[l] = random(NUM_OF_PIXELS); 
+            }
+            for (int j = 0; j < NUM_OF_FACETS; j+=1) {
+                 for (int l = i-1; l > -1; l -= 1) {
+                    facets[j]->getRing()->setPixelColor((pix[l]), 30, 144, 255);
+                 }
+                facets[j]->getRing()->show();
+            }
+            delay(50);
+            for  (int j = 0; j < NUM_OF_FACETS; j+=1) {
+              
+               for (int l = i-1; l > -1; l -= 1) {
+                    facets[j]->getRing()->setPixelColor((pix[l]), 0, 0, 0);
+               }
+               facets[j]->getRing()->show(); 
+            }
+  }
   
+  delay(10000);
+ 
+  for (int i = 0; i < NUM_OF_FACETS; i++) {
+     facets[i]->handleChanged(IDLE); 
+  }
 }
 
 void loop() {
-
     while (Serial.available() > 0) {
         int number = Serial.parseInt();
         int state = Serial.parseInt();
         
         if (state == THE_MAIN_EVENT) {
-            
+            finale();
         } else {
             handleChange(number, state);
         }
@@ -393,5 +445,4 @@ void loop() {
     drawProximity(&proximityDraw, 10);
     drawTouch(&touchedDraw, 900);
     drawCorresponding(&correspondingDraw, 900);
-
 }
