@@ -279,10 +279,10 @@ static int drawProximity(struct pt *pt, int interval) {
           
         } else if (proximityFadeOut == 1) {
           
-          proximityFadeCount -= 2;  
+          proximityFadeCount -= 3;  
         
         } else {
-          proximityFadeCount += 1;
+          proximityFadeCount += 3;
         }
         handleDraw(PROXIMITY);
     }
